@@ -90,10 +90,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error = "NIM harus terdiri dari 8–12 digit angka!";
     } else if (!preg_match("/^[a-zA-Z\s.'-]+$/", $full_name)) {
         $error = "Nama hanya boleh berisi huruf, spasi, titik, petik atau tanda hubung!";
-    } else if ($mode == 'check_out' && empty($photo_path)) {
-        $error = "Foto wajib diunggah untuk absen pulang!";
-    } else if (empty($latitude) || empty($longitude)) {
-        $error = "Lokasi tidak terdeteksi. Pastikan Anda mengizinkan akses lokasi dan mencoba lagi.";
     } else {
         if ($mode == 'check_in') {
             // Cek apakah NIM sudah check_in hari ini
@@ -197,8 +193,6 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="icon" type="image/png" href="1041px-Unper.png">
     <title><?php echo ($mode == 'check_in') ? 'Absen Masuk' : 'Absen Pulang'; ?> - Sistem Absensi</title>
     <link rel="stylesheet" href="assets/css/style.css">
@@ -207,177 +201,99 @@ $conn->close();
     <style>
     * {
       box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    }
-
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #f5f5f5;
-      color: #333;
-    }
-
-    .main-content {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 500px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     .form-container {
       background-color: #ffffff;
-      padding: 25px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
       width: 100%;
-      animation: fadeInUp 0.5s ease-out;
+      max-width: 500px;
+      animation: fadeInUp 0.7s ease-out;
     }
 
-    h1 {
+    h2 {
       text-align: center;
       color: #333;
-      margin-bottom: 1rem;
-      font-size: 1.8rem;
-    }
-
-    .form-container p {
-      text-align: center;
-      color: #666;
       margin-bottom: 1.5rem;
     }
 
     .form-group {
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.2rem;
     }
 
     label {
       display: block;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.4rem;
       font-weight: 600;
       color: #333;
     }
 
     input[type="text"],
-    textarea,
-    input[type="file"] {
+    textarea {
       width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
+      padding: 0.9rem;
+      border: 1px solid #ccc;
+      border-radius: 0.6rem;
       font-size: 1rem;
       transition: border-color 0.3s ease;
-      background-color: #f9f9f9;
     }
 
     input[type="text"]:focus,
     textarea:focus {
-      border-color: #007aff;
+      border-color: #007bff;
       outline: none;
-      background-color: #fff;
     }
 
     textarea {
       resize: vertical;
-      min-height: 100px;
     }
 
     button {
-      width: 100%;
-      padding: 14px;
-      background-color: #000;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+        width: 100%;
+        padding: 1rem;
+        background-color: #000;
+        color: #fff;
+        border: none;
+        border-radius: 0.6rem;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
     }
 
     button:hover {
-      background-color: #333;
-    }
-
-    button:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-
-    .alert {
-      padding: 12px;
-      margin-bottom: 20px;
-      border-radius: 8px;
-      text-align: center;
-    }
-
-    .alert-success {
-      background-color: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
-    }
-
-    .alert-error {
-      background-color: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
+        background-color: #333;
     }
 
     .location-status {
-      padding: 12px;
-      margin-bottom: 15px;
-      border-radius: 8px;
-      text-align: center;
-      font-size: 0.9rem;
+        padding: 10px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        text-align: center;
     }
     
     .location-info {
-      background-color: #e7f5ff;
-      color: #1864ab;
-      border: 1px solid #d0ebff;
+        background-color: #d4edda;
+        color: #155724;
     }
     
     .location-warning {
-      background-color: #fff3bf;
-      color: #e67700;
-      border: 1px solid #ffec99;
+        background-color: #fff3cd;
+        color: #856404;
     }
     
     .location-error {
-      background-color: #ffc9c9;
-      color: #c92a2a;
-      border: 1px solid #ffa8a8;
-    }
-
-    .form-footer {
-      margin-top: 20px;
-      text-align: center;
-      font-size: 0.9rem;
-      color: #666;
-    }
-
-    .form-footer a {
-      color: #007aff;
-      text-decoration: none;
-    }
-
-    .form-footer a:hover {
-      text-decoration: underline;
+        background-color: #f8d7da;
+        color: #721c24;
     }
 
     @keyframes fadeInUp {
       from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(30px);
       }
       to {
         opacity: 1;
@@ -385,13 +301,13 @@ $conn->close();
       }
     }
 
-    @media (max-width: 480px) {
+    @media (max-width: 600px) {
       .form-container {
-        padding: 20px;
+        padding: 1.5rem;
       }
 
-      h1 {
-        font-size: 1.5rem;
+      h2 {
+        font-size: 1.4rem;
       }
     }
   </style>
@@ -444,10 +360,8 @@ $conn->close();
                     <div class="form-group">
                         <input type="hidden" name="latitude" id="latitude">
                         <input type="hidden" name="longitude" id="longitude">
-                        <div id="locationStatus" class="location-status location-info">
-                            <i class="fas fa-sync fa-spin"></i> Mendeteksi lokasi Anda...
-                        </div>
-                        <button type="submit" id="submitBtn" disabled>
+                        <div id="locationStatus" class="location-status" style="display:none;"></div>
+                        <button type="submit" id="submitBtn">
                             <i class="fas fa-<?= ($mode == 'check_in') ? 'sign-in-alt' : 'sign-out-alt'; ?>"></i>
                             <?= ($mode == 'check_in') ? 'Absen Masuk' : 'Absen Pulang'; ?>
                         </button>
@@ -461,7 +375,7 @@ $conn->close();
                             Belum absen masuk? <a href="attendance_public.php?mode=check_in">Absen masuk</a>
                         <?php endif; ?>
                     </p>
-                    <p><a href="../..">Kembali ke Beranda</a></p>
+                    <p><a href="../.." class="btn btn-link">Kembali ke Beranda</a></p>
                 </div>
             </div>
         </div>
@@ -474,123 +388,76 @@ $conn->close();
     </footer>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const locationStatus = document.getElementById('locationStatus');
-            const submitBtn = document.getElementById('submitBtn');
-            const latitudeInput = document.getElementById('latitude');
-            const longitudeInput = document.getElementById('longitude');
-            const form = document.getElementById('attendanceForm');
-            
-            // Function to update location status
-            function updateStatus(message, type, icon = null) {
-                locationStatus.className = 'location-status ' + type;
-                if (icon) {
-                    locationStatus.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
-                } else {
-                    locationStatus.innerHTML = message;
-                }
-            }
-            
-            // Function to get location
-            function getLocation() {
-                updateStatus('Mendeteksi lokasi Anda...', 'location-info', 'fa-sync fa-spin');
-                
-                if (!navigator.geolocation) {
-                    updateStatus('Browser tidak mendukung geolokasi', 'location-error', 'fa-exclamation-circle');
-                    return;
-                }
-                
-                const options = {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                };
+        const locationStatus = document.getElementById('locationStatus');
+        const submitBtn = document.getElementById('submitBtn');
+        const latitudeInput = document.getElementById('latitude');
+        const longitudeInput = document.getElementById('longitude');
+        
+        // Function to update location status display
+        function updateLocationStatus(message, type) {
+            locationStatus.style.display = 'block';
+            locationStatus.className = 'location-status ' + type;
+            locationStatus.innerHTML = message;
+        }
+        
+        // Function to get current location
+        function getLocation() {
+            if (navigator.geolocation) {
+                updateLocationStatus('Mendeteksi lokasi Anda...', 'location-info');
                 
                 navigator.geolocation.getCurrentPosition(
                     function(position) {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
+                        const latitude = position.coords.latitude;
+                        const longitude = position.coords.longitude;
                         
-                        latitudeInput.value = lat;
-                        longitudeInput.value = lng;
+                        latitudeInput.value = latitude;
+                        longitudeInput.value = longitude;
                         
-                        updateStatus('Lokasi berhasil dideteksi', 'location-info', 'fa-check-circle');
+                        updateLocationStatus('Lokasi berhasil dideteksi', 'location-info');
                         submitBtn.disabled = false;
                     },
                     function(error) {
-                        let errorMsg = 'Gagal mendapatkan lokasi: ';
+                        let errorMessage = "Lokasi tidak dapat dideteksi: ";
                         switch(error.code) {
                             case error.PERMISSION_DENIED:
-                                errorMsg += 'Izin lokasi ditolak. Silakan aktifkan izin lokasi di pengaturan browser Anda.';
+                                errorMessage += "Izin akses lokasi ditolak.";
                                 break;
                             case error.POSITION_UNAVAILABLE:
-                                errorMsg += 'Informasi lokasi tidak tersedia.';
+                                errorMessage += "Informasi lokasi tidak tersedia.";
                                 break;
                             case error.TIMEOUT:
-                                errorMsg += 'Permintaan lokasi melebihi waktu tunggu.';
+                                errorMessage += "Permintaan lokasi melebihi waktu tunggu.";
                                 break;
                             case error.UNKNOWN_ERROR:
-                                errorMsg += 'Terjadi kesalahan yang tidak diketahui.';
+                                errorMessage += "Terjadi kesalahan yang tidak diketahui.";
                                 break;
                         }
-                        
-                        updateStatus(errorMsg, 'location-warning', 'fa-exclamation-triangle');
+                        updateLocationStatus(errorMessage, 'location-warning');
                         submitBtn.disabled = false;
                     },
-                    options
-                );
-            }
-            
-            // iOS-specific handling
-            function isIOS() {
-                return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            }
-            
-            // Special handling for iOS
-            if (isIOS()) {
-                // Add meta tags for iOS web app
-                const meta1 = document.createElement('meta');
-                meta1.name = 'apple-mobile-web-app-capable';
-                meta1.content = 'yes';
-                document.head.appendChild(meta1);
-                
-                const meta2 = document.createElement('meta');
-                meta2.name = 'apple-mobile-web-app-status-bar-style';
-                meta2.content = 'black-translucent';
-                document.head.appendChild(meta2);
-                
-                // Force page reload when returning from settings (for permission changes)
-                window.addEventListener('pageshow', function(event) {
-                    if (event.persisted) {
-                        window.location.reload();
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
                     }
-                });
+                );
+            } else {
+                updateLocationStatus("Browser Anda tidak mendukung geolokasi", 'location-error');
+                submitBtn.disabled = false;
             }
-            
-            // Get location when page loads
+        }
+        
+        // Automatically get location when page loads
+        document.addEventListener('DOMContentLoaded', function() {
             getLocation();
             
-            // Handle form submission
-            form.addEventListener('submit', function(e) {
+            // Add event listener to form submission to ensure location is captured
+            document.getElementById('attendanceForm').addEventListener('submit', function(e) {
                 if (!latitudeInput.value || !longitudeInput.value) {
                     e.preventDefault();
-                    updateStatus('Harap tunggu hingga lokasi terdeteksi...', 'location-warning', 'fa-exclamation-circle');
+                    updateLocationStatus('Harap tunggu hingga lokasi terdeteksi...', 'location-error');
                     getLocation();
                 }
-                
-                // Disable button during submission to prevent double click
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
-            });
-            
-            // Re-enable button if form submission fails
-            window.addEventListener('pageshow', function() {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = `
-                    <i class="fas fa-<?= ($mode == 'check_in') ? 'sign-in-alt' : 'sign-out-alt'; ?>"></i>
-                    <?= ($mode == 'check_in') ? 'Absen Masuk' : 'Absen Pulang'; ?>
-                `;
             });
         });
     </script>
