@@ -25,8 +25,10 @@ if (isset($_POST['verify'])) {
         $admin_id = $_SESSION['user_id'];
         $current_time = date('Y-m-d H:i:s');
         
-     $sql = "UPDATE public_attendance SET verified = 1, verified_by = ?, verified_at = ? 
-        WHERE id = ?";
+     $sql = "SELECT pa.id, pa.full_name, pa.nim, pa.prodi, pa.check_in_time, pa.check_out_time, 
+               pa.verified, pa.verified_by, pa.verified_at, pa.notes
+        FROM public_attendance pa
+        WHERE DATE(pa.check_in_time) = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("isi", $admin_id, $current_time, $attendance_id);
 
@@ -50,13 +52,6 @@ $admin = $result->fetch_assoc();
 // Get attendance records
 $date_filter = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
 $verification_filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
-
-// SQL query to get attendance records with coordinates
-$sql = "SELECT pa.id, pa.full_name, pa.nim, pa.prodi, pa.date, pa.check_in_time, pa.check_out_time, 
-        pa.verified, pa.verified_by, pa.verified_at, pa.notes, pa.photo,
-        pa.latitude_in, pa.longitude_in, pa.latitude_out, pa.longitude_out
-        FROM public_attendance pa
-        WHERE DATE(pa.date) = ?";
 
 if ($verification_filter === 'verified') {
     $sql .= " AND pa.verified = TRUE";
@@ -390,8 +385,6 @@ $conn->close();
                                             <th>Program Studi</th>
                                             <th>Jam Masuk</th>
                                             <th>Jam Pulang</th>
-                                            <th>Lokasi Masuk</th>
-                                            <th>Lokasi Pulang</th>
                                             <th>Status</th>
                                             <th>Aksi</th>
                                         </tr>
@@ -405,24 +398,6 @@ $conn->close();
                                                 <td><?php echo htmlspecialchars($attendance['prodi']); ?></td>
                                                 <td><?php echo $attendance['check_in_time']; ?></td>
                                                 <td><?php echo $attendance['check_out_time'] ? $attendance['check_out_time'] : '-'; ?></td>
-                                                <td>
-                                                    <?php if ($attendance['latitude_in'] && $attendance['longitude_in']): ?>
-                                                        <a href="https://www.google.com/maps?q=<?php echo $attendance['latitude_in']; ?>,<?php echo $attendance['longitude_in']; ?>" target="_blank" class="btn btn-sm btn-info">
-                                                            <i class="fas fa-map-marker-alt"></i> Lihat Peta
-                                                        </a>
-                                                    <?php else: ?>
-                                                        -
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <?php if ($attendance['latitude_out'] && $attendance['longitude_out']): ?>
-                                                        <a href="https://www.google.com/maps?q=<?php echo $attendance['latitude_out']; ?>,<?php echo $attendance['longitude_out']; ?>" target="_blank" class="btn btn-sm btn-info">
-                                                            <i class="fas fa-map-marker-alt"></i> Lihat Peta
-                                                        </a>
-                                                    <?php else: ?>
-                                                        -
-                                                    <?php endif; ?>
-                                                </td>
                                                 <td>
                                                     <?php if ($attendance['verified']): ?>
                                                         <span class="badge badge-success">

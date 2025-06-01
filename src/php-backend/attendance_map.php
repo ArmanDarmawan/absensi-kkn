@@ -1,23 +1,25 @@
 <?php
 session_start();
-require_once 'config.php';
+require_once 'config.php'; // Make sure this file exists and connects to your DB
 
 // Connect to database
-$conn = connectDB();
+$conn = connectDB(); // Assuming connectDB() is in config.php and returns a mysqli connection
 date_default_timezone_set('Asia/Jakarta');
 
 // Cek apakah user adalah admin
-$is_admin = false;
+$is_admin = false; // This variable is declared but not used in this specific file's logic path.
+                  // If it were to restrict data, the SQL query would need adjustment.
 if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
     $is_admin = true;
 }
 
 // Filter data
 $date_filter = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
-$nim_filter = isset($_GET['nim']) ? $_GET['nim'] : '';
+$nim_filter = isset($_GET['nim']) ? trim($_GET['nim']) : '';
 
 // Query untuk mendapatkan data absensi dengan koordinat
-$sql = "SELECT * FROM public_attendance WHERE 1=1";
+// Explicitly list columns for clarity and security
+$sql = "SELECT id, nim, full_name, prodi, date, check_in_time, latitude_in, longitude_in, check_out_time, latitude_out, longitude_out FROM public_attendance WHERE 1=1";
 $params = [];
 $types = "";
 
@@ -44,11 +46,13 @@ if (!empty($params)) {
 $stmt->execute();
 $result = $stmt->get_result();
 $attendances = $result->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 
 // Jika request JSON
 if (isset($_GET['format']) && $_GET['format'] === 'json') {
     header('Content-Type: application/json');
-    echo json_encode($attendances);
+    echo json_encode($attendances); // For API usage, consider JSON_HEX_TAG etc. if data could be rendered in HTML by client
+    $conn->close(); // Close connection for JSON response
     exit;
 }
 ?>
@@ -58,22 +62,21 @@ if (isset($_GET['format']) && $_GET['format'] === 'json') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Lokasi Absensi - Sistem Absensi</title>
-    <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="icon" href="assets/img/favicon.ico">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary-color: #333333;
+            --primary-color: #333333; /* Consider Bootstrap's default or theme colors */
             --secondary-color: #555555;
             --accent-color: #777777;
-            --success-color: #444444;
-            --danger-color: #666666;
-            --warning-color: #888888;
+            --success-color: #198754; /* Bootstrap's success color */
+            --danger-color: #dc3545;  /* Bootstrap's danger color */
+            --warning-color: #ffc107; /* Bootstrap's warning color */
             --light-color: #f8f9fa;
             --dark-color: #212529;
             --white: #ffffff;
@@ -86,76 +89,45 @@ if (isset($_GET['format']) && $_GET['format'] === 'json') {
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--light-color);
-            color: var(--black);
+            color: var(--black); /* Changed to var(--dark-color) for better contrast on light bg */
             line-height: 1.6;
         }
         
-        .header {
-            background: linear-gradient(135deg, var(--black), var(--dark-color));
-            color: var(--white);
-            padding: 1.5rem 0;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            position: relative;
-            z-index: 100;
+        /* .container class is provided by Bootstrap, custom styles might conflict or be redundant */
+        /* .main-content class not explicitly used, styles might be for general <main> or other elements */
+
+        .sidebar {
+            position: -webkit-sticky;
+            position: sticky;
+            top: 0;
+            height: calc(100vh - 0px); 
+            padding-top: 1rem;
+            overflow-x: hidden;
+            overflow-y: auto; 
         }
-        
-        .header h1 {
-            margin: 0;
-            font-size: 1.8rem;
-            font-weight: 700;
-        }
-        
-        .header nav ul {
-            display: flex;
-            gap: 1.5rem;
-            margin-top: 1rem;
-            padding: 0;
-            list-style: none;
-        }
-        
-        .header nav a {
-            color: var(--white);
-            text-decoration: none;
+
+        .sidebar .nav-link {
             font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            transition: all 0.3s ease;
+            color: var(--dark-color);
+        }
+
+        .sidebar .nav-link .fas, .sidebar .nav-link .far {
+            margin-right: 0.5rem;
+        }
+
+        .sidebar .nav-link.active {
+            color: var(--bs-primary); /* Using Bootstrap primary color variable */
+            background-color: var(--gray-light);
+            border-radius: 0.25rem;
         }
         
-        .header nav a:hover, .header nav a.active {
-            background-color: rgba(255,255,255,0.2);
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1.5rem;
-        }
-        
-        .main-content {
-            padding: 2rem 0;
-        }
-        
-        .map-container {
-            margin: 2rem 0;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-            transition: all 0.3s ease;
-            height: 500px;
-        }
-        
-        .map-container:hover {
-            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
-        }
-        
+        /* .map-container class styles are good, but #map is styled directly with height. Consider consolidating. */
         #map {
-            height: 100%;
+            height: 100%; /* Takes height from parent, ensure parent (.card-body) has height or #map has fixed height */
             width: 100%;
-           
         }
         
-        .filter-card {
+        .filter-container {
             background-color: var(--white);
             border-radius: 12px;
             padding: 1.5rem;
@@ -163,9 +135,9 @@ if (isset($_GET['format']) && $_GET['format'] === 'json') {
             margin-bottom: 2rem;
         }
         
-        .filter-card h2 {
+        .filter-container h2 { 
             margin-top: 0;
-            color: var(--black);
+            color: var(--dark-color);
             font-size: 1.5rem;
             margin-bottom: 1.5rem;
             display: flex;
@@ -173,191 +145,35 @@ if (isset($_GET['format']) && $_GET['format'] === 'json') {
             gap: 0.5rem;
         }
         
-        .filter-card h2 i {
-            font-size: 1.3rem;
-        }
-        
-        .filter-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            align-items: end;
-        }
-        
-        .form-group {
-            margin-bottom: 0;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: var(--black);
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            border: 1px solid var(--gray-medium);
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background-color: var(--white);
-        }
-        
+        /* .form-group is a custom class; Bootstrap uses .mb-3 for margin. */
+        /* .form-control is styled by Bootstrap; custom :focus styles are fine. */
         .form-control:focus {
             outline: none;
-            border-color: var(--black);
-            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+            border-color: var(--bs-primary); 
+            box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.25); /* Using Bootstrap focus shadow */
         }
         
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            gap: 0.5rem;
-        }
-        
-        .btn-primary {
-            background-color: var(--black);
+        /* .btn styling: Bootstrap .btn is quite comprehensive. Overriding needs care. */
+        /* Your .btn-primary override changes Bootstrap's default. */
+        .btn-primary { 
+            background-color: var(--dark-color); /* Custom primary button color */
             color: var(--white);
+            border-color: var(--dark-color);
         }
         
         .btn-primary:hover {
-            background-color: var(--dark-color);
+            background-color: var(--black); /* Darken custom primary */
+            border-color: var(--black);
             transform: translateY(-2px);
         }
         
-        .btn-secondary {
-            background-color: var(--gray-dark);
-            color: var(--white);
-        }
-        
-        .btn-secondary:hover {
-            background-color: var(--secondary-color);
-            transform: translateY(-2px);
-        }
-        
-        .btn-group {
-            display: flex;
-            gap: 1rem;
-        }
-        
-        .section-title {
-            font-size: 1.5rem;
-            color: var(--black);
-            margin: 2rem 0 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        
-        .section-title i {
-            font-size: 1.3rem;
-        }
-        
-        .attendance-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 1.5rem;
-            margin-top: 1.5rem;
-        }
-        
-        .attendance-card {
-            background-color: var(--white);
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            padding: 1.5rem;
+        /* .attendance-card is defined but HTML uses Bootstrap's .card. */
+        .card { /* Adding transitions to Bootstrap cards */
             transition: all 0.3s ease;
-            border-left: 4px solid var(--black);
-            display: flex;
-            flex-direction: column;
         }
-        
-        .attendance-card:hover {
+        .card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-        }
-        
-        .attendance-card h3 {
-            margin: 0 0 0.5rem;
-            color: var(--black);
-            font-size: 1.2rem;
-            font-weight: 600;
-        }
-        
-        .attendance-meta {
-            color: var(--gray-dark);
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-            flex-grow: 1;
-        }
-        
-        .attendance-meta p {
-            margin: 0.25rem 0;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .attendance-meta i {
-            width: 1rem;
-            text-align: center;
-        }
-        
-        .attendance-location {
-            background-color: var(--gray-light);
-            padding: 1rem;
-            border-radius: 8px;
-            margin-top: auto;
-        }
-        
-        .attendance-location h4 {
-            margin: 0 0 0.75rem;
-            font-size: 1rem;
-            color: var(--black);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .attendance-location p {
-            margin: 0.5rem 0;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-        }
-        
-        .btn-view-map {
-            background-color: var(--black);
-            color: var(--white);
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-        }
-        
-        .btn-view-map:hover {
-            background-color: var(--dark-color);
-            transform: translateY(-2px);
-        }
-        
-        .btn-view-map i {
-            font-size: 0.8rem;
         }
         
         .empty-state {
@@ -368,71 +184,6 @@ if (isset($_GET['format']) && $_GET['format'] === 'json') {
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
         
-        .empty-state i {
-            font-size: 3rem;
-            color: var(--gray-dark);
-            margin-bottom: 1rem;
-        }
-        
-        .empty-state h3 {
-            color: var(--black);
-            margin-bottom: 0.5rem;
-        }
-        
-        .empty-state p {
-            color: var(--gray-dark);
-            margin-bottom: 1.5rem;
-        }
-        
-        .stats-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .stat-card {
-            background-color: var(--white);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            transition: all 0.3s ease;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-        }
-        
-        .stat-card h3 {
-            margin: 0 0 0.5rem;
-            font-size: 1rem;
-            color: var(--gray-dark);
-            font-weight: 500;
-        }
-        
-        .stat-card .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--black);
-            margin: 0;
-        }
-        
-        .chart-container {
-            background-color: var(--white);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            margin-bottom: 2rem;
-        }
-        
-        .chart-container h3 {
-            margin-top: 0;
-            color: var(--black);
-            font-size: 1.2rem;
-            margin-bottom: 1.5rem;
-        }
-        
         .footer {
             background-color: var(--black);
             color: var(--white);
@@ -441,66 +192,57 @@ if (isset($_GET['format']) && $_GET['format'] === 'json') {
             margin-top: 3rem;
         }
         
-        .footer p {
-            margin: 0;
-        }
-        
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .header nav ul {
-                flex-direction: column;
-                gap: 0.5rem;
+        @media (max-width: 767.98px) { 
+            .filter-form .col-md-4 { /* Adjusted to col-md-4 used in form */
+                flex: 0 0 100%;
+                max-width: 100%;
             }
-            
-            .filter-form {
-                grid-template-columns: 1fr;
-            }
-            
-            .attendance-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .btn-group {
+            .btn-group { 
                 flex-direction: column;
             }
-            
-            .btn {
-                width: 100%;
+             .btn-group .btn + .btn {
+                margin-top: 0.5rem;
+                margin-left: 0;
             }
         }
         
-        /* Animation classes */
         .fade-in {
-            animation: fadeIn 0.5s ease-in;
+            /* animation defined below is used via JS IntersectionObserver for better control */
         }
         
-        @keyframes fadeIn {
+        @keyframes fadeInAnimation { /* Renamed to avoid conflict if JS uses "fadeIn" */
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
-        /* Custom marker icons */
         .marker-in {
-            background-color: var(--white);
+            background-color: var(--success-color); /* Bootstrap success green */
             border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: block;
-            border: 3px solid var(--black);
-            box-shadow: 0 0 0 2px var(--white);
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--white);
+            box-shadow: 0 0 0 2px var(--success-color);
         }
         
         .marker-out {
-            background-color: var(--black);
+            background-color: var(--danger-color); /* Bootstrap danger red */
             border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: block;
-            border: 3px solid var(--white);
-            box-shadow: 0 0 0 2px var(--black);
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--white);
+            box-shadow: 0 0 0 2px var(--danger-color);
+        }
+        .marker-in i, .marker-out i {
+            color: white;
+            font-size: 10px;
         }
         
-        /* Custom scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -520,355 +262,491 @@ if (isset($_GET['format']) && $_GET['format'] === 'json') {
             background: var(--dark-color);
         }
 
-        /* Badge styles */
-        .badge {
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-        }
-        
-        .badge-in {
-            background-color: var(--white);
-            color: var(--black);
-            border: 1px solid var(--black);
-        }
-        
-        .badge-out {
-            background-color: var(--black);
-            color: var(--white);
+        .badge.bg-success, .badge.bg-danger { 
+            color: white !important; /* Ensures text visibility */
         }
         .offcanvas-header {
-            background-color: #f8f9fa;
+            background-color: var(--light-color);
         }
     </style>
 </head>
 <body>
 <div class="container-fluid">
-  
-    <main class="main-content">
-        <div class="container">
-                        <a class="#kembali" href="dashboard.php">
-                        Kembali
+    <div class="row">
+        <div class="d-md-none bg-light p-2 sticky-top shadow-sm"> 
+            <button
+                class="btn btn-outline-primary"
+                type="button"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#offcanvasSidebar"
+                aria-controls="offcanvasSidebar"
+            >
+                <i class="fas fa-bars"></i> Menu
+            </button>
+        </div>
+
+        <div
+            class="offcanvas offcanvas-start d-md-none"
+            tabindex="-1"
+            id="offcanvasSidebar"
+            aria-labelledby="offcanvasSidebarLabel"
+        >
+            <div class="offcanvas-header border-bottom"> 
+                <h5 class="offcanvas-title" id="offcanvasSidebarLabel">Menu Navigasi</h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="offcanvas"
+                    aria-label="Close"
+                ></button>
+            </div>
+            <div class="offcanvas-body sidebar"> 
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a href="dashboard.php" class="nav-link"
+                            ><i class="fas fa-home"></i> Dashboard</a
+                        >
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="photos.php">
+                            <i class="fas fa-images"></i> Foto Absensi
                         </a>
-            <!-- Filter Card -->
-            <div class="filter-card fade-in">
-                <h2><i class="fas fa-filter"></i> Filter Data</h2>
-                <form method="get" action="">
-                    <div class="filter-form">
-                        <div class="form-group">
-                            <label for="date"><i class="far fa-calendar-alt"></i> Tanggal</label>
-                            <input type="date" id="date" name="date" value="<?php echo $date_filter; ?>" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="nim"><i class="fas fa-id-card"></i> NIM</label>
-                            <input type="text" id="nim" name="nim" value="<?php echo $nim_filter; ?>" placeholder="Masukkan NIM" class="form-control">
-                        </div>
-                        <div class="form-group btn-group">
-                            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
-                            <a href="attendance_map.php" class="btn btn-secondary"><i class="fas fa-sync-alt"></i> Reset</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="attendance_map.php"> 
+                            <i class="fas fa-map-marked-alt"></i> Lokasi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="logout.php" class="nav-link"
+                            ><i class="fas fa-sign-out-alt"></i> Logout</a
+                        >
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <nav class="col-md-2 d-none d-md-block bg-light sidebar shadow-sm"> 
+            <div class="position-sticky pt-3">
+                <h4 class="px-3 mb-3">Menu Navigasi</h4>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.php">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="photos.php">
+                            <i class="fas fa-images"></i> Foto Absensi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="attendance_map.php">
+                            <i class="fas fa-map-marked-alt"></i> Lokasi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="logout.php">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    
+    <main class="col-md-10 ms-sm-auto col-lg-10 px-md-4 py-4 px-3"> 
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2"><i class="fas fa-map-marked-alt"></i> Data Lokasi Absensi</h1>
+            <div class="btn-toolbar mb-2 mb-md-0">
+                 <a class="btn btn-sm btn-outline-secondary" href="dashboard.php">
+                     <i class="fas fa-arrow-left"></i> Kembali ke Dashboard
+                 </a>
+            </div>
+        </div>
+            <div class="filter-container mb-4">
+                <form method="get" class="row g-3 align-items-end filter-form">
+                    <div class="col-md-4"> 
+                        <label for="date" class="form-label"><i class="far fa-calendar-alt"></i> Tanggal</label>
+                        <input type="text" class="form-control" id="date" name="date" value="<?php echo htmlspecialchars($date_filter); ?>">
+                    </div>
+                    <div class="col-md-4"> 
+                        <label for="nim" class="form-label"><i class="fas fa-id-card"></i> NIM</label>
+                        <input type="text" class="form-control" id="nim" name="nim" value="<?php echo htmlspecialchars($nim_filter); ?>" placeholder="Masukkan NIM">
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex flex-column flex-sm-row">
+                            <button type="submit" class="btn btn-primary w-100 me-sm-2 mb-2 mb-sm-0">
+                                <i class="fas fa-filter"></i> Filter
+                            </button>
+                            <a href="attendance_map.php" class="btn btn-secondary w-100">
+                                <i class="fas fa-sync-alt"></i> Reset
+                            </a>
                         </div>
                     </div>
                 </form>
             </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Ditemukan <?= count($attendances) ?> data absensi.
+            </div>
 
-            <!-- Stats Cards -->
-            <div class="stats-container fade-in">
-                <div class="stat-card">
-                    <h3>Total Absensi</h3>
-                    <p class="stat-value"><?php echo count($attendances); ?></p>
+            <div class="row mb-4">
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title text-muted">Total Absensi</h5>
+                            <p class="card-text fs-2 fw-bold"><?php echo count($attendances); ?></p>
+                        </div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <h3>Tanggal Terakhir</h3>
-                    <p class="stat-value"><?php echo count($attendances) > 0 ? date('d M Y', strtotime($attendances[0]['date'])) : '-'; ?></p>
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title text-muted">Tanggal Terpilih</h5>
+                            <p class="card-text fs-2 fw-bold"><?php echo !empty($date_filter) ? date('d M Y', strtotime($date_filter)) : (count($attendances) > 0 && isset($attendances[0]['date']) ? date('d M Y', strtotime($attendances[0]['date'])) : '-'); ?></p>
+                        </div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <h3>Paling Awal</h3>
-                    <p class="stat-value">
-                        <?php 
-                        if (count($attendances) > 0) {
-                            $earliest = null;
-                            foreach ($attendances as $att) {
-                                if (!empty($att['check_in_time']) && (is_null($earliest) || $att['check_in_time'] < $earliest['check_in_time'])) {
-                                    $earliest = $att;
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title text-muted">Check-in Terawal</h5>
+                            <p class="card-text fs-2 fw-bold">
+                                <?php 
+                                if (count($attendances) > 0) {
+                                    $earliestTime = null;
+                                    foreach ($attendances as $att) {
+                                        if (!empty($att['check_in_time'])) {
+                                            if (is_null($earliestTime) || strtotime($att['check_in_time']) < strtotime($earliestTime)) {
+                                                $earliestTime = $att['check_in_time'];
+                                            }
+                                        }
+                                    }
+                                    echo $earliestTime ? date('H:i', strtotime($earliestTime)) : '-';
+                                } else {
+                                    echo '-';
                                 }
-                            }
-                            echo $earliest ? date('H:i', strtotime($earliest['check_in_time'])) : '-';
-                        } else {
-                            echo '-';
-                        }
-                        ?>
-                    </p>
+                                ?>
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <h3>Paling Telat</h3>
-                    <p class="stat-value">
-                        <?php 
-                        if (count($attendances) > 0) {
-                            $latest = null;
-                            foreach ($attendances as $att) {
-                                if (!empty($att['check_in_time']) && (is_null($latest) || $att['check_in_time'] > $latest['check_in_time'])) {
-                                    $latest = $att;
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title text-muted">Check-in Terakhir</h5>
+                            <p class="card-text fs-2 fw-bold">
+                                <?php 
+                                if (count($attendances) > 0) {
+                                    $latestTime = null;
+                                    foreach ($attendances as $att) {
+                                         if (!empty($att['check_in_time'])) { 
+                                            if (is_null($latestTime) || strtotime($att['check_in_time']) > strtotime($latestTime)) {
+                                                $latestTime = $att['check_in_time'];
+                                            }
+                                        }
+                                    }
+                                    echo $latestTime ? date('H:i', strtotime($latestTime)) : '-';
+                                } else {
+                                    echo '-';
                                 }
-                            }
-                            echo $latest ? date('H:i', strtotime($latest['check_in_time'])) : '-';
-                        } else {
-                            echo '-';
-                        }
-                        ?>
-                    </p>
+                                ?>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Map Container -->
-            <div class="map-container fade-in">
-                <div id="map"></div>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-map-marked-alt"></i> Peta Lokasi Absensi
+                </div>
+                <div class="card-body p-0" style="height: 500px;"> 
+                    <div id="map" style="border-radius: 0 0 .375rem .375rem;"></div> 
+                </div>
             </div>
 
-            <!-- Attendance List -->
-            <h2 class="section-title"><i class="fas fa-list-ul"></i> Daftar Absensi</h2>
+            <h3 class="mb-3"><i class="fas fa-list-ul"></i> Daftar Detail Absensi</h3>
             
             <?php if (count($attendances) > 0): ?>
-                <div class="attendance-grid">
+                <div class="row">
                     <?php foreach ($attendances as $attendance): ?>
-                        <div class="attendance-card fade-in">
-                            <h3><?php echo htmlspecialchars($attendance['full_name']); ?></h3>
-                            <div class="attendance-meta">
-                                <p><i class="fas fa-id-card"></i> <strong>NIM:</strong> <?php echo htmlspecialchars($attendance['nim']); ?></p>
-                                <p><i class="fas fa-graduation-cap"></i> <strong>Program Studi:</strong> <?php echo htmlspecialchars($attendance['prodi']); ?></p>
-                                <p><i class="far fa-calendar"></i> <strong>Tanggal:</strong> <?php echo date('d F Y', strtotime($attendance['date'])); ?></p>
-                                <p>
-                                    <i class="far fa-clock"></i> <strong>Waktu:</strong> 
-                                    <?php if (!empty($attendance['check_in_time'])): ?>
-                                        <span class="badge" style="background-color: #4ade80; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">
-                                            Masuk: <?php echo date('H:i', strtotime($attendance['check_in_time'])); ?>
-                                        </span>
-                                    <?php endif; ?>
-                                    <?php if (!empty($attendance['check_out_time'])): ?>
-                                        <span class="badge" style="background-color: #f87171; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; margin-left: 5px;">
-                                            Pulang: <?php echo date('H:i', strtotime($attendance['check_out_time'])); ?>
-                                        </span>
-                                    <?php endif; ?>
-                                </p>
-                            </div>
-                            <div class="attendance-location">
-                                <h4><i class="fas fa-map-marker-alt"></i> Lokasi Absensi</h4>
-                                <?php if (!empty($attendance['latitude_in']) && !empty($attendance['longitude_in'])): ?>
-                                    <p>
-                                        <span><i class="fas fa-sign-in-alt" style="color: #4ade80;"></i> <strong>Masuk:</strong> 
-                                        <?php echo $attendance['latitude_in']; ?>, <?php echo $attendance['longitude_in']; ?></span>
-                                        <button class="btn-view-map" onclick="showOnMap(<?php echo $attendance['latitude_in']; ?>, <?php echo $attendance['longitude_in']; ?>, '<?php echo htmlspecialchars($attendance['full_name']); ?> (Masuk)')">
-                                            <i class="fas fa-map-marked-alt"></i> Lihat
-                                        </button>
+                        <div class="col-md-6 col-lg-4 mb-4 fade-in">
+                            <div class="card h-100">
+                                <div class="card-header bg-primary text-white"> 
+                                    <h5 class="card-title mb-0"><?php echo htmlspecialchars($attendance['full_name']); ?></h5>
+                                    <small><?php echo htmlspecialchars($attendance['nim']); ?> - <?php echo htmlspecialchars($attendance['prodi']); ?></small>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text"><i class="far fa-calendar text-primary"></i> <strong>Tanggal:</strong> <?php echo date('d F Y', strtotime($attendance['date'])); ?></p>
+                                    <p class="card-text">
+                                        <i class="far fa-clock text-primary"></i> <strong>Waktu:</strong> 
+                                        <?php if (!empty($attendance['check_in_time'])): ?>
+                                            <span class="badge bg-success">
+                                                Masuk: <?php echo date('H:i', strtotime($attendance['check_in_time'])); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($attendance['check_out_time'])): ?>
+                                            <span class="badge bg-danger ms-1">
+                                                Pulang: <?php echo date('H:i', strtotime($attendance['check_out_time'])); ?>
+                                            </span>
+                                        <?php endif; ?>
                                     </p>
-                                <?php endif; ?>
-                                <?php if (!empty($attendance['latitude_out']) && !empty($attendance['longitude_out'])): ?>
-                                    <p>
-                                        <span><i class="fas fa-sign-out-alt" style="color: #f87171;"></i> <strong>Pulang:</strong> 
-                                        <?php echo $attendance['latitude_out']; ?>, <?php echo $attendance['longitude_out']; ?></span>
-                                        <button class="btn-view-map" onclick="showOnMap(<?php echo $attendance['latitude_out']; ?>, <?php echo $attendance['longitude_out']; ?>, '<?php echo htmlspecialchars($attendance['full_name']); ?> (Pulang)')">
-                                            <i class="fas fa-map-marked-alt"></i> Lihat
-                                        </button>
-                                    </p>
-                                <?php endif; ?>
+                                    
+                                    <div class="mt-3 p-3 bg-light rounded border">
+                                        <h6><i class="fas fa-map-marker-alt text-primary"></i> Lokasi Absensi</h6>
+                                        <?php if (!empty($attendance['latitude_in']) && !empty($attendance['longitude_in'])): ?>
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span><i class="fas fa-sign-in-alt text-success"></i> <strong>Masuk:</strong></span>
+                                                <button class="btn btn-sm btn-outline-primary" onclick="focusOnMap(<?php echo $attendance['latitude_in']; ?>, <?php echo $attendance['longitude_in']; ?>, <?php echo htmlspecialchars(json_encode($attendance['full_name'] . ' (Masuk)'), ENT_QUOTES, 'UTF-8'); ?>)">
+                                                    <i class="fas fa-map-pin"></i> Lihat
+                                                </button>
+                                            </div>
+                                            <p class="small text-muted mb-2 fst-italic"><?php echo htmlspecialchars($attendance['latitude_in']); ?>, <?php echo htmlspecialchars($attendance['longitude_in']); ?></p>
+                                        <?php endif; ?>
+                                        
+                                        <?php if (!empty($attendance['latitude_out']) && !empty($attendance['longitude_out'])): ?>
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span><i class="fas fa-sign-out-alt text-danger"></i> <strong>Pulang:</strong></span>
+                                                <button class="btn btn-sm btn-outline-primary" onclick="focusOnMap(<?php echo $attendance['latitude_out']; ?>, <?php echo $attendance['longitude_out']; ?>, <?php echo htmlspecialchars(json_encode($attendance['full_name'] . ' (Pulang)'), ENT_QUOTES, 'UTF-8'); ?>)">
+                                                    <i class="fas fa-map-pin"></i> Lihat
+                                                </button>
+                                            </div>
+                                            <p class="small text-muted fst-italic"><?php echo htmlspecialchars($attendance['latitude_out']); ?>, <?php echo htmlspecialchars($attendance['longitude_out']); ?></p>
+                                        <?php endif; ?>
+                                         <?php if (empty($attendance['latitude_in']) && empty($attendance['longitude_in']) && empty($attendance['latitude_out']) && empty($attendance['longitude_out'])): ?>
+                                            <p class="small text-muted fst-italic">Data lokasi tidak tersedia.</p>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
             <?php else: ?>
-                <div class="empty-state fade-in">
-                    <i class="far fa-folder-open"></i>
-                    <h3>Tidak Ada Data Absensi</h3>
-                    <p>Silakan coba dengan filter yang berbeda atau tanggal lain.</p>
-                    <a href="attendance_map.php" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Muat Ulang</a>
+                <div class="alert alert-warning empty-state">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <h3>Tidak Ada Data</h3>
+                    <p>Tidak ada data absensi yang ditemukan. Silakan coba dengan filter yang berbeda atau tanggal lain.</p>
+                     <a href="attendance_map.php" class="btn btn-primary">
+                         <i class="fas fa-sync-alt"></i> Muat Ulang Data
+                     </a>
                 </div>
             <?php endif; ?>
         </div>
     </main>
+</div>
+</div>
+
     <footer class="footer">
         <div class="container">
-            <p>© 2025 SistemAbsensi. Hak Cipta Dilindungi.</p>
+            <p>© <?php echo date('Y'); ?> Sistem Absensi KKN Cikondang. All rights reserved.</p>
         </div>
     </footer>
 
+
     <script>
-        // Initialize date picker
         flatpickr("#date", {
             dateFormat: "Y-m-d",
-            defaultDate: "<?php echo $date_filter; ?>"
+            defaultDate: "<?php echo htmlspecialchars($date_filter, ENT_QUOTES, 'UTF-8'); ?>"
         });
 
-        // Create custom marker icons
-        const greenIcon = L.divIcon({
+        function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') {
+                return unsafe; 
+            }
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        const markerIconIn = L.divIcon({
             className: 'marker-in',
-            html: '<i class="fas fa-sign-in-alt" style="color: white; font-size: 10px; display: flex; align-items: center; justify-content: center; height: 100%;"></i>',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
+            html: '<i class="fas fa-sign-in-alt"></i>',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
         });
 
-        const redIcon = L.divIcon({
+        const markerIconOut = L.divIcon({
             className: 'marker-out',
-            html: '<i class="fas fa-sign-out-alt" style="color: white; font-size: 10px; display: flex; align-items: center; justify-content: center; height: 100%;"></i>',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
+            html: '<i class="fas fa-sign-out-alt"></i>',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
         });
 
-        // Inisialisasi peta dengan view yang lebih dinamis
-        const map = L.map('map').setView([-7.3351, 108.3234], 15);
+        const map = L.map('map').setView([-7.4236961, 108.3434041], 15);
 
-        // Tambahkan layer peta dengan tema yang lebih modern
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // Tambahkan marker untuk lokasi Desa Cikondang dengan ikon custom
         const mainLocationIcon = L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
             iconSize: [25, 41],
             iconAnchor: [12, 41],
-            popupAnchor: [1, -34]
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
         });
 
-        L.marker([-7.3351, 108.3234], {icon: mainLocationIcon}).addTo(map)
-            .bindPopup('<b>Desa Cikondang</b><br>Lokasi utama absensi')
+        L.marker([-7.4236961, 108.3434041], { icon: mainLocationIcon }).addTo(map)
+            .bindPopup('<b>Desa Cikondang</b><br>Titik pusat area absensi.')
             .openPopup();
 
-        // Tambahkan lingkaran dengan radius 1km (area yang diizinkan) dengan style yang lebih menarik
-        L.circle([-7.3351, 108.3234], {
-            color: '#4361ee',
-            fillColor: '#4361ee',
+        L.circle([-7.4236961, 108.3434041], {
+            color: 'var(--bs-primary)', // Using Bootstrap primary via CSS var
+            fillColor: 'var(--bs-primary)',
             fillOpacity: 0.1,
-            radius: 1000 // 1km dalam meter
-        }).addTo(map).bindPopup("Area absensi 1km dari titik pusat");
+            radius: 1150 
+        }).addTo(map).bindPopup("Area absensi yang diizinkan (radius ~1.15km)");
 
-        // Array untuk menyimpan semua marker
-        const markers = [];
+        const allMarkers = []; 
 
-        // Tambahkan semua marker absensi dengan ikon berbeda untuk masuk dan pulang
-        <?php foreach ($attendances as $attendance): ?>
+        <?php foreach ($attendances as $idx => $attendance): ?>
+            <?php
+            // JSON_HEX_TAG and JSON_HEX_APOS are crucial for safety when embedding in <script> that generates HTML.
+            // Though we use escapeHtml client-side too, defense in depth is good.
+            $fullNameJs = json_encode($attendance['full_name'], JSON_HEX_TAG | JSON_HEX_APOS);
+            $nimJs = json_encode($attendance['nim'], JSON_HEX_TAG | JSON_HEX_APOS);
+            $prodiJs = json_encode($attendance['prodi'], JSON_HEX_TAG | JSON_HEX_APOS); // Added Prodi
+            $dateJs = json_encode(date('d/m/Y', strtotime($attendance['date'])), JSON_HEX_TAG | JSON_HEX_APOS);
+            $checkInTimeJs = !empty($attendance['check_in_time']) ? json_encode(date('H:i', strtotime($attendance['check_in_time'])), JSON_HEX_TAG | JSON_HEX_APOS) : 'null';
+            $checkOutTimeJs = !empty($attendance['check_out_time']) ? json_encode(date('H:i', strtotime($attendance['check_out_time'])), JSON_HEX_TAG | JSON_HEX_APOS) : 'null';
+            ?>
+
             <?php if (!empty($attendance['latitude_in']) && !empty($attendance['longitude_in'])): ?>
-                const markerIn = L.marker([<?php echo $attendance['latitude_in']; ?>, <?php echo $attendance['longitude_in']; ?>], {
-                    icon: greenIcon
-                }).addTo(map);
-                
-                markerIn.bindPopup(`
-                    <div style="min-width: 200px;">
-                        <h4 style="margin: 0 0 5px; color: #4361ee;">${escapeHtml('<?php echo $attendance['full_name']; ?>')}</h4>
-                        <p style="margin: 0 0 5px;"><i class="fas fa-id-card" style="width: 15px;"></i> ${escapeHtml('<?php echo $attendance['nim']; ?>')}</p>
-                        <p style="margin: 0 0 5px;"><i class="fas fa-calendar-day" style="width: 15px;"></i> ${escapeHtml('<?php echo date('d/m/Y', strtotime($attendance['date'])); ?>')}</p>
-                        <p style="margin: 0 0 5px;"><i class="fas fa-sign-in-alt" style="color: #4ade80; width: 15px;"></i> <strong>Masuk:</strong> ${escapeHtml('<?php echo date('H:i', strtotime($attendance['check_in_time'])); ?>')}</p>
-                        <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                            <button onclick="flyToMarker(${markers.length})" style="background: #4361ee; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
-                                <i class="fas fa-crosshairs"></i> Fokus
-                            </button>
-                            <a href="https://www.google.com/maps?q=<?php echo $attendance['latitude_in']; ?>,<?php echo $attendance['longitude_in']; ?>" target="_blank" style="background: #4ade80; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; text-decoration: none;">
-                                <i class="fas fa-external-link-alt"></i> Google Maps
-                            </a>
+                (function() { 
+                    const lat = <?php echo $attendance['latitude_in']; ?>;
+                    const lng = <?php echo $attendance['longitude_in']; ?>;
+                    const name = <?php echo $fullNameJs; ?>;
+                    const nim = <?php echo $nimJs; ?>;
+                    const prodi = <?php echo $prodiJs; ?>;
+                    const dateStr = <?php echo $dateJs; ?>;
+                    const checkInTime = <?php echo $checkInTimeJs; ?>;
+
+                    const markerIn = L.marker([lat, lng], { icon: markerIconIn }).addTo(map);
+                    let popupContentIn = `
+                        <div style="min-width: 230px; font-size: 0.9rem;">
+                            <h5 style="margin: 0 0 8px; color: var(--bs-primary); font-size: 1.1rem;">${escapeHtml(name)}</h5>
+                            <p style="margin: 3px 0;"><i class="fas fa-id-card" style="width: 18px; color: #6c757d;"></i> ${escapeHtml(nim)} (${escapeHtml(prodi)})</p>
+                            <p style="margin: 3px 0;"><i class="fas fa-calendar-day" style="width: 18px; color: #6c757d;"></i> ${escapeHtml(dateStr)}</p>
+                            <p style="margin: 3px 0;"><i class="fas fa-sign-in-alt" style="color: var(--success-color); width: 18px;"></i> <strong>Masuk:</strong> ${checkInTime ? escapeHtml(checkInTime) : '-'}</p>
+                            <p style="margin: 3px 0; font-size: 0.8rem; color: #6c757d;"><i class="fas fa-map-marker-alt" style="width: 18px;"></i> ${lat}, ${lng}</p>
+                            <div style="display: flex; justify-content: space-between; margin-top: 10px; gap: 5px;">
+                                <button onclick="focusOnMap(${lat}, ${lng}, escapeHtml(name) + ' (Masuk)')" class="btn btn-sm btn-primary" style="font-size: 0.8rem;">
+                                    <i class="fas fa-crosshairs"></i> Fokus
+                                </button>
+                                <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="btn btn-sm btn-success" style="font-size: 0.8rem;">
+                                    <i class="fab fa-google"></i> Google Maps
+                                </a>
+                            </div>
                         </div>
-                    </div>
-                `);
-                
-                markers.push(markerIn);
+                    `;
+                    markerIn.bindPopup(popupContentIn);
+                    allMarkers.push(markerIn);
+                })();
             <?php endif; ?>
             
             <?php if (!empty($attendance['latitude_out']) && !empty($attendance['longitude_out'])): ?>
-                const markerOut = L.marker([<?php echo $attendance['latitude_out']; ?>, <?php echo $attendance['longitude_out']; ?>], {
-                    icon: redIcon
-                }).addTo(map);
-                
-                markerOut.bindPopup(`
-                    <div style="min-width: 200px;">
-                        <h4 style="margin: 0 0 5px; color: #4361ee;">${escapeHtml('<?php echo $attendance['full_name']; ?>')}</h4>
-                        <p style="margin: 0 0 5px;"><i class="fas fa-id-card" style="width: 15px;"></i> ${escapeHtml('<?php echo $attendance['nim']; ?>')}</p>
-                        <p style="margin: 0 0 5px;"><i class="fas fa-calendar-day" style="width: 15px;"></i> ${escapeHtml('<?php echo date('d/m/Y', strtotime($attendance['date'])); ?>')}</p>
-                        <p style="margin: 0 0 5px;"><i class="fas fa-sign-out-alt" style="color: #f87171; width: 15px;"></i> <strong>Pulang:</strong> ${escapeHtml('<?php echo date('H:i', strtotime($attendance['check_out_time'])); ?>')}</p>
-                        <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                            <button onclick="flyToMarker(${markers.length})" style="background: #4361ee; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
-                                <i class="fas fa-crosshairs"></i> Fokus
-                            </button>
-                            <a href="https://www.google.com/maps?q=<?php echo $attendance['latitude_out']; ?>,<?php echo $attendance['longitude_out']; ?>" target="_blank" style="background: #f87171; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; text-decoration: none;">
-                                <i class="fas fa-external-link-alt"></i> Google Maps
-                            </a>
+                (function() { 
+                    const lat = <?php echo $attendance['latitude_out']; ?>;
+                    const lng = <?php echo $attendance['longitude_out']; ?>;
+                    const name = <?php echo $fullNameJs; ?>;
+                    const nim = <?php echo $nimJs; ?>;
+                    const prodi = <?php echo $prodiJs; ?>;
+                    const dateStr = <?php echo $dateJs; ?>;
+                    const checkOutTime = <?php echo $checkOutTimeJs; ?>;
+
+                    const markerOut = L.marker([lat, lng], { icon: markerIconOut }).addTo(map);
+                    let popupContentOut = `
+                        <div style="min-width: 230px; font-size: 0.9rem;">
+                            <h5 style="margin: 0 0 8px; color: var(--bs-primary); font-size: 1.1rem;">${escapeHtml(name)}</h5>
+                            <p style="margin: 3px 0;"><i class="fas fa-id-card" style="width: 18px; color: #6c757d;"></i> ${escapeHtml(nim)} (${escapeHtml(prodi)})</p>
+                            <p style="margin: 3px 0;"><i class="fas fa-calendar-day" style="width: 18px; color: #6c757d;"></i> ${escapeHtml(dateStr)}</p>
+                            <p style="margin: 3px 0;"><i class="fas fa-sign-out-alt" style="color: var(--danger-color); width: 18px;"></i> <strong>Pulang:</strong> ${checkOutTime ? escapeHtml(checkOutTime) : '-'}</p>
+                             <p style="margin: 3px 0; font-size: 0.8rem; color: #6c757d;"><i class="fas fa-map-marker-alt" style="width: 18px;"></i> ${lat}, ${lng}</p>
+                            <div style="display: flex; justify-content: space-between; margin-top: 10px; gap: 5px;">
+                                 <button onclick="focusOnMap(${lat}, ${lng}, escapeHtml(name) + ' (Pulang)')" class="btn btn-sm btn-primary" style="font-size: 0.8rem;">
+                                     <i class="fas fa-crosshairs"></i> Fokus
+                                 </button>
+                                 <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="btn btn-sm btn-danger" style="font-size: 0.8rem;"> {/* Matched button style with marker */}
+                                     <i class="fab fa-google"></i> Google Maps
+                                 </a>
+                            </div>
                         </div>
-                    </div>
-                `);
-                
-                markers.push(markerOut);
+                    `;
+                    markerOut.bindPopup(popupContentOut);
+                    allMarkers.push(markerOut);
+                })();
             <?php endif; ?>
         <?php endforeach; ?>
 
-        // Fungsi untuk menampilkan lokasi di peta dengan animasi
-        function showOnMap(lat, lng, title) {
-            map.flyTo([lat, lng], 17, {
-                duration: 1,
+        // Optional: Fit map to markers if any exist and are not too widespread.
+        // if (allMarkers.length > 0) {
+        //     const group = new L.featureGroup(allMarkers);
+        //     // Add the main Cikondang marker to the group if you always want it included in bounds
+        //     // group.addLayer(L.marker([-7.4236961, 108.3434041])); 
+        //     map.fitBounds(group.getBounds().pad(0.3)); 
+        // } else {
+        //     map.setView([-7.4236961, 108.3434041], 15);
+        // }
+
+
+        function focusOnMap(lat, lng, title) {
+            map.flyTo([lat, lng], 17, { 
+                duration: 1.5, 
                 easeLinearity: 0.25
             });
             
-            // Buka popup jika ada marker di lokasi tersebut
-            markers.forEach(marker => {
-                if (marker.getLatLng().lat === lat && marker.getLatLng().lng === lng) {
-                    setTimeout(() => {
-                        marker.openPopup();
-                    }, 1000);
-                }
-            });
+            // Create a temporary, simple popup when focusing from the card list.
+            // The detailed popups are already bound to the markers themselves.
+            L.popup()
+              .setLatLng([lat, lng])
+              .setContent(title ? `<strong>${escapeHtml(title)}</strong><br><small>${lat}, ${lng}</small>` : `${lat}, ${lng}`)
+              .openOn(map);
         }
         
-        // Fungsi untuk focus ke marker tertentu
-        function flyToMarker(index) {
-            if (markers[index]) {
-                const latLng = markers[index].getLatLng();
-                map.flyTo(latLng, 17, {
-                    duration: 1,
-                    easeLinearity: 0.25
-                });
-                
-                setTimeout(() => {
-                    markers[index].openPopup();
-                }, 1000);
-            }
-        }
-        
-        // Fungsi untuk escape HTML
-        function escapeHtml(unsafe) {
-            return unsafe
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
-        
-        // Animasi saat scroll
         document.addEventListener('DOMContentLoaded', () => {
             const fadeElements = document.querySelectorAll('.fade-in');
             
-            const fadeInOnScroll = () => {
+            if ('IntersectionObserver' in window) {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.style.opacity = "1";
+                            entry.target.style.transform = "translateY(0)";
+                            observer.unobserve(entry.target); 
+                        }
+                    });
+                }, { threshold: 0.1 });
+
                 fadeElements.forEach(element => {
-                    const elementTop = element.getBoundingClientRect().top;
-                    const elementVisible = 150;
-                    
-                    if (elementTop < window.innerHeight - elementVisible) {
-                        element.style.opacity = "1";
-                        element.style.transform = "translateY(0)";
-                    }
+                    element.style.opacity = "0";
+                    element.style.transform = "translateY(20px)";
+                    element.style.transition = "opacity 0.6s ease-out, transform 0.6s ease-out";
+                    observer.observe(element);
                 });
-            };
-            
-            // Set initial state
-            fadeElements.forEach(element => {
-                element.style.opacity = "0";
-                element.style.transform = "translateY(20px)";
-                element.style.transition = "opacity 0.6s ease, transform 0.6s ease";
+            } else { // Fallback for older browsers
+                fadeElements.forEach(element => {
+                    element.style.opacity = "1";
+                    element.style.transform = "translateY(0)";
+                });
+            }
+
+            // Initialize Bootstrap Offcanvas
+            var offcanvasElementList = [].slice.call(document.querySelectorAll('.offcanvas'));
+            offcanvasElementList.map(function (offcanvasEl) {
+                return new bootstrap.Offcanvas(offcanvasEl);
             });
-            
-            // Run once on load
-            fadeInOnScroll();
-            
-            // Then run on scroll
-            window.addEventListener('scroll', fadeInOnScroll);
         });
         
     </script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+<?php
+$conn->close(); // Close the database connection at the very end
+?>

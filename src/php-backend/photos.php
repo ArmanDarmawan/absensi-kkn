@@ -1,7 +1,7 @@
 <?php
 session_start();
 require_once 'config.php';
-
+date_default_timezone_set('Asia/Jakarta');
 // Check if user is logged in and is admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: login.php");
@@ -32,7 +32,7 @@ $name_filter = isset($_GET['name']) ? $_GET['name'] : '';
 $nim_filter = isset($_GET['nim']) ? $_GET['nim'] : '';
 
 // Get attendance records with photo
-$sql = "SELECT id, full_name, nim, date, photo FROM public_attendance WHERE photo IS NOT NULL";
+$sql = "SELECT id, full_name, nim, date, check_out_time, photo FROM public_attendance WHERE photo IS NOT NULL";
 $params = [];
 $types = "";
 
@@ -161,88 +161,290 @@ $conn->close();
                 flex-direction: column;
             }
         }
+        :root {
+            --primary-color: #333333; /* Consider Bootstrap's default or theme colors */
+            --secondary-color: #555555;
+            --accent-color: #777777;
+            --success-color: #198754; /* Bootstrap's success color */
+            --danger-color: #dc3545;  /* Bootstrap's danger color */
+            --warning-color: #ffc107; /* Bootstrap's warning color */
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --white: #ffffff;
+            --black: #000000;
+            --gray-light: #e9ecef;
+            --gray-medium: #ced4da;
+            --gray-dark: #adb5bd;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-color);
+            color: var(--black); /* Changed to var(--dark-color) for better contrast on light bg */
+            line-height: 1.6;
+        }
+        
+        /* .container class is provided by Bootstrap, custom styles might conflict or be redundant */
+        /* .main-content class not explicitly used, styles might be for general <main> or other elements */
+
+        .sidebar {
+            position: -webkit-sticky;
+            position: sticky;
+            top: 0;
+            height: calc(100vh - 0px); 
+            padding-top: 1rem;
+            overflow-x: hidden;
+            overflow-y: auto; 
+        }
+
+        .sidebar .nav-link {
+            font-weight: 500;
+            color: var(--dark-color);
+        }
+
+        .sidebar .nav-link .fas, .sidebar .nav-link .far {
+            margin-right: 0.5rem;
+        }
+
+        .sidebar .nav-link.active {
+            color: var(--bs-primary); /* Using Bootstrap primary color variable */
+            background-color: var(--gray-light);
+            border-radius: 0.25rem;
+        }
+        
+        /* .map-container class styles are good, but #map is styled directly with height. Consider consolidating. */
+        #map {
+            height: 100%; /* Takes height from parent, ensure parent (.card-body) has height or #map has fixed height */
+            width: 100%;
+        }
+        
+        .filter-container {
+            background-color: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+        
+        .filter-container h2 { 
+            margin-top: 0;
+            color: var(--dark-color);
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        /* .form-group is a custom class; Bootstrap uses .mb-3 for margin. */
+        /* .form-control is styled by Bootstrap; custom :focus styles are fine. */
+        .form-control:focus {
+            outline: none;
+            border-color: var(--bs-primary); 
+            box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.25); /* Using Bootstrap focus shadow */
+        }
+        
+        /* .btn styling: Bootstrap .btn is quite comprehensive. Overriding needs care. */
+        /* Your .btn-primary override changes Bootstrap's default. */
+        .btn-primary { 
+            background-color: var(--dark-color); /* Custom primary button color */
+            color: var(--white);
+            border-color: var(--dark-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--black); /* Darken custom primary */
+            border-color: var(--black);
+            transform: translateY(-2px);
+        }
+        
+        /* .attendance-card is defined but HTML uses Bootstrap's .card. */
+        .card { /* Adding transitions to Bootstrap cards */
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            background-color: var(--white);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .footer {
+            background-color: var(--black);
+            color: var(--white);
+            padding: 2rem 0;
+            text-align: center;
+            margin-top: 3rem;
+        }
+        
+        @media (max-width: 767.98px) { 
+            .filter-form .col-md-4 { /* Adjusted to col-md-4 used in form */
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+            .btn-group { 
+                flex-direction: column;
+            }
+             .btn-group .btn + .btn {
+                margin-top: 0.5rem;
+                margin-left: 0;
+            }
+        }
+        
+        .fade-in {
+            /* animation defined below is used via JS IntersectionObserver for better control */
+        }
+        
+        @keyframes fadeInAnimation { /* Renamed to avoid conflict if JS uses "fadeIn" */
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .marker-in {
+            background-color: var(--success-color); /* Bootstrap success green */
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--white);
+            box-shadow: 0 0 0 2px var(--success-color);
+        }
+        
+        .marker-out {
+            background-color: var(--danger-color); /* Bootstrap danger red */
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--white);
+            box-shadow: 0 0 0 2px var(--danger-color);
+        }
+        .marker-in i, .marker-out i {
+            color: white;
+            font-size: 10px;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--gray-light);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--black);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--dark-color);
+        }
+
+        .badge.bg-success, .badge.bg-danger { 
+            color: white !important; /* Ensures text visibility */
+        }
+        .offcanvas-header {
+            background-color: var(--light-color);
+        }
+        
     </style>
 </head>
 <body>
-<div class="container-fluid">
+ <div class="container-fluid">
     <div class="row">
-        <!-- Sidebar toggle untuk mobile -->
-        <div class="d-md-none bg-light p-2">
+        <div class="d-md-none bg-light p-2 sticky-top shadow-sm"> 
             <button
                 class="btn btn-outline-primary"
                 type="button"
                 data-bs-toggle="offcanvas"
                 data-bs-target="#offcanvasSidebar"
+                aria-controls="offcanvasSidebar"
             >
                 <i class="fas fa-bars"></i> Menu
             </button>
         </div>
 
-        <!-- Sidebar Offcanvas -->
         <div
             class="offcanvas offcanvas-start d-md-none"
             tabindex="-1"
             id="offcanvasSidebar"
+            aria-labelledby="offcanvasSidebarLabel"
         >
-            <div class="offcanvas-header">
-                <h5 class="offcanvas-title">Menu</h5>
+            <div class="offcanvas-header border-bottom"> 
+                <h5 class="offcanvas-title" id="offcanvasSidebarLabel">Menu Photo</h5>
                 <button
                     type="button"
                     class="btn-close"
                     data-bs-dismiss="offcanvas"
+                    aria-label="Close"
                 ></button>
             </div>
-            <div class="offcanvas-body sidebar">
+            <div class="offcanvas-body sidebar"> 
                 <ul class="nav flex-column">
-                    <li class="nav-item">
+                    <li class="nav-item ">
                         <a href="dashboard.php" class="nav-link"
-                            ><i class="fas fa-home"></i> Dashboard</a>
-                        <li class="nav-item">
-                            <a class="nav-link active" href="photos.php">
-                                <i class="fas fa-images"></i> Foto Absensi
-                            </a>
-                        </li>
+                            ><i class="fas fa-home"></i> Dashboard</a
+                        >
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="photos.php">
+                            <i class="fas fa-images"></i> Foto Absensi
+                        </a>
                     </li>
                     <li class="nav-item">
-                            <a class="nav-link active" href="attendance_map.php">
-                                <i class="fas fa-map-marked-alt"></i> Lokasi
-                            </a>
-                        </li>
+                        <a class="nav-link " href="attendance_map.php"> 
+                            <i class="fas fa-map-marked-alt"></i> Lokasi
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a href="logout.php" class="nav-link"
-                            ><i class="fas fa-sign-out-alt"></i> Logout</a >
+                            ><i class="fas fa-sign-out-alt"></i> Logout</a
+                        >
                     </li>
                 </ul>
             </div>
         </div>
 
-        <!-- Sidebar desktop -->
-        <nav class="col-md-2 d-none d-md-block bg-light sidebar">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link" href="dashboard.php">
-                                <i class="fas fa-home"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link active" href="photos.php">
-                                <i class="fas fa-images"></i> Foto Absensi
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link active" href="attendance_map.php">
-                                <i class="fas fa-map-marked-alt"></i> Lokasi
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="logout.php">
-                                <i class="fas fa-sign-out-alt"></i> Logout
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
+        <nav class="col-md-2 d-none d-md-block bg-light sidebar shadow-sm"> 
+            <div class="position-sticky pt-3">
+                <h4 class="px-3 mb-3">Menu Photo</h4>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link " href="dashboard.php">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="photos.php">
+                            <i class="fas fa-images"></i> Foto Absensi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="attendance_map.php">
+                            <i class="fas fa-map-marked-alt"></i> Lokasi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="logout.php">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
 
             <!-- Main content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
@@ -309,7 +511,13 @@ $conn->close();
                                 <div class="photo-info">
                                     <h5><?= htmlspecialchars($attendance['full_name']) ?></h5>
                                     <p><strong>NIM:</strong> <?= htmlspecialchars($attendance['nim']) ?></p>
-                                    <p><strong>Tanggal:</strong> <?= date('d-m-Y', strtotime($attendance['date'])) ?></p>
+                                    <p><strong>Tanggal & Jam:</strong> <?= date('d-m-Y ', strtotime($attendance['date'])) ?> </p>
+                                    <?php if (!empty($attendance['check_out_time'])): ?>
+                                    <p><strong>Check Out:</strong> <?= date('H:i', strtotime($attendance['check_out_time'])) ?> WIB</p>
+                                <?php else: ?>
+                                    <p><strong>Check Out:</strong> <span class="text-muted">Belum checkout</span></p>
+                                <?php endif; ?>
+
                                     <p>
                                         <a href="<?= htmlspecialchars($attendance['photo']) ?>" 
                                            target="_blank" 
@@ -338,7 +546,12 @@ $conn->close();
                                         <div class="modal-footer">
                                             <div class="me-auto">
                                                 <p class="mb-1"><strong>NIM:</strong> <?= htmlspecialchars($attendance['nim']) ?></p>
-                                                <p class="mb-1"><strong>Tanggal:</strong> <?= date('d-m-Y H:i', strtotime($attendance['date'])) ?></p>
+                                                <p class="mb-1"><strong>Tanggal:</strong> <?= date('d-m-Y', strtotime($attendance['date'])) ?> </p>
+                                                <?php if (!empty($attendance['check_out_time'])): ?>
+                                                <p class="mb-1"><strong>Check Out:</strong> <?= date('H:i', strtotime($attendance['check_out_time'])) ?> WIB</p>
+                                            <?php else: ?>
+                                                <p class="mb-1 text-muted"><strong>Check Out:</strong> Belum checkout</p>
+                                            <?php endif; ?>
                                             </div>
                                             <form method="post" class="d-inline" onsubmit="return confirm('Yakin ingin menghapus foto ini?');">
                                             <input type="hidden" name="delete_id" value="<?= $attendance['id'] ?>">

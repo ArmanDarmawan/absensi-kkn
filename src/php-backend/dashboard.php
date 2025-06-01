@@ -265,161 +265,290 @@ $conn->close();
         rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <style>
-        .table-responsive {
-            overflow-x: auto;
+   <style>
+        :root {
+            --primary-color: #333333; /* Consider Bootstrap's default or theme colors */
+            --secondary-color: #555555;
+            --accent-color: #777777;
+            --success-color: #198754; /* Bootstrap's success color */
+            --danger-color: #dc3545;  /* Bootstrap's danger color */
+            --warning-color: #ffc107; /* Bootstrap's warning color */
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --white: #ffffff;
+            --black: #000000;
+            --gray-light: #e9ecef;
+            --gray-medium: #ced4da;
+            --gray-dark: #adb5bd;
         }
-        .filter-container .form-select,
-        .filter-container input[type="date"] {
-            max-width: 200px;
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-color);
+            color: var(--black); /* Changed to var(--dark-color) for better contrast on light bg */
+            line-height: 1.6;
         }
+        
+        /* .container class is provided by Bootstrap, custom styles might conflict or be redundant */
+        /* .main-content class not explicitly used, styles might be for general <main> or other elements */
+
         .sidebar {
-            background-color: #f8f9fa;
-            min-height: 100vh;
+            position: -webkit-sticky;
+            position: sticky;
+            top: 0;
+            height: calc(100vh - 0px); 
+            padding-top: 1rem;
+            overflow-x: hidden;
+            overflow-y: auto; 
         }
-        .offcanvas-header {
-            background-color: #f8f9fa;
+
+        .sidebar .nav-link {
+            font-weight: 500;
+            color: var(--dark-color);
         }
-        @media (max-width: 768px) {
-            .sidebar-toggle {
-                display: inline-block;
-            }
-            .filter-container {
-                flex-direction: column;
-                gap: 10px;
-            }
-            .filter-container .form-select,
-            .filter-container input[type="date"] {
+
+        .sidebar .nav-link .fas, .sidebar .nav-link .far {
+            margin-right: 0.5rem;
+        }
+
+        .sidebar .nav-link.active {
+            color: var(--bs-primary); /* Using Bootstrap primary color variable */
+            background-color: var(--gray-light);
+            border-radius: 0.25rem;
+        }
+        
+        /* .map-container class styles are good, but #map is styled directly with height. Consider consolidating. */
+        #map {
+            height: 100%; /* Takes height from parent, ensure parent (.card-body) has height or #map has fixed height */
+            width: 100%;
+        }
+        
+        .filter-container {
+            background-color: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+        
+        .filter-container h2 { 
+            margin-top: 0;
+            color: var(--dark-color);
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        /* .form-group is a custom class; Bootstrap uses .mb-3 for margin. */
+        /* .form-control is styled by Bootstrap; custom :focus styles are fine. */
+        .form-control:focus {
+            outline: none;
+            border-color: var(--bs-primary); 
+            box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.25); /* Using Bootstrap focus shadow */
+        }
+        
+        /* .btn styling: Bootstrap .btn is quite comprehensive. Overriding needs care. */
+        /* Your .btn-primary override changes Bootstrap's default. */
+        .btn-primary { 
+            background-color: var(--dark-color); /* Custom primary button color */
+            color: var(--white);
+            border-color: var(--dark-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--black); /* Darken custom primary */
+            border-color: var(--black);
+            transform: translateY(-2px);
+        }
+        
+        /* .attendance-card is defined but HTML uses Bootstrap's .card. */
+        .card { /* Adding transitions to Bootstrap cards */
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            background-color: var(--white);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .footer {
+            background-color: var(--black);
+            color: var(--white);
+            padding: 2rem 0;
+            text-align: center;
+            margin-top: 3rem;
+        }
+        
+        @media (max-width: 767.98px) { 
+            .filter-form .col-md-4 { /* Adjusted to col-md-4 used in form */
+                flex: 0 0 100%;
                 max-width: 100%;
             }
+            .btn-group { 
+                flex-direction: column;
+            }
+             .btn-group .btn + .btn {
+                margin-top: 0.5rem;
+                margin-left: 0;
+            }
+        }
+        
+        .fade-in {
+            /* animation defined below is used via JS IntersectionObserver for better control */
+        }
+        
+        @keyframes fadeInAnimation { /* Renamed to avoid conflict if JS uses "fadeIn" */
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .marker-in {
+            background-color: var(--success-color); /* Bootstrap success green */
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--white);
+            box-shadow: 0 0 0 2px var(--success-color);
+        }
+        
+        .marker-out {
+            background-color: var(--danger-color); /* Bootstrap danger red */
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--white);
+            box-shadow: 0 0 0 2px var(--danger-color);
+        }
+        .marker-in i, .marker-out i {
+            color: white;
+            font-size: 10px;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--gray-light);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--black);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--dark-color);
         }
 
-@media print {
-  body {
-    margin: 0;
-    padding: 0;
-    font-size: 12pt;
-    color: black;
-    background: white;
-  }
-
-  /* Sembunyikan elemen yang tidak perlu dicetak */
-  .no-print, nav, footer, .btn {
-    display: none !important;
-  }
-
-  /* Atur lebar konten agar tidak terpotong */
-  .container, .content {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0;
-    padding: 0;
-  }
-
-  /* Ubah ukuran font atau layout jika perlu */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  table, th, td {
-    border: 1px solid black;
-    padding: 5px;
-  }
-
-  /* Hindari pemutusan halaman di tengah tabel */
-  table {
-    page-break-inside: avoid;
-  }
-  @page {
-  size: A4;
-  margin: 1cm;
-}
-
-}
-
+        .badge.bg-success, .badge.bg-danger { 
+            color: white !important; /* Ensures text visibility */
+        }
+        .offcanvas-header {
+            background-color: var(--light-color);
+        }
     </style>
 </head>
 <body>
 <div class="container-fluid">
     <div class="row">
-        <!-- Sidebar toggle untuk mobile -->
-        <div class="d-md-none bg-light p-2">
+        <div class="d-md-none bg-light p-2 sticky-top shadow-sm"> 
             <button
                 class="btn btn-outline-primary"
                 type="button"
                 data-bs-toggle="offcanvas"
                 data-bs-target="#offcanvasSidebar"
+                aria-controls="offcanvasSidebar"
             >
                 <i class="fas fa-bars"></i> Menu
             </button>
         </div>
 
-        <!-- Sidebar Offcanvas -->
         <div
             class="offcanvas offcanvas-start d-md-none"
             tabindex="-1"
             id="offcanvasSidebar"
+            aria-labelledby="offcanvasSidebarLabel"
         >
-            <div class="offcanvas-header">
-                <h5 class="offcanvas-title">Menu</h5>
+            <div class="offcanvas-header border-bottom"> 
+                <h5 class="offcanvas-title" id="offcanvasSidebarLabel">Menu Dashboard</h5>
                 <button
                     type="button"
                     class="btn-close"
                     data-bs-dismiss="offcanvas"
+                    aria-label="Close"
                 ></button>
             </div>
-            <div class="offcanvas-body sidebar">
+            <div class="offcanvas-body sidebar"> 
                 <ul class="nav flex-column">
-                    <li class="nav-item">
+                    <li class="nav-item active">
                         <a href="dashboard.php" class="nav-link"
-                            ><i class="fas fa-home"></i> Dashboard</a>
-                        <li class="nav-item">
-                            <a class="nav-link active" href="photos.php">
-                                <i class="fas fa-images"></i> Foto Absensi
-                            </a>
-                        </li>
+                            ><i class="fas fa-home"></i> Dashboard</a
+                        >
                     </li>
                     <li class="nav-item">
-                            <a class="nav-link active" href="attendance_map.php">
-                                <i class="fas fa-map-marked-alt"></i> Lokasi
-                            </a>
-                        </li>
+                        <a class="nav-link" href="photos.php">
+                            <i class="fas fa-images"></i> Foto Absensi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="attendance_map.php"> 
+                            <i class="fas fa-map-marked-alt"></i> Lokasi
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a href="logout.php" class="nav-link"
-                            ><i class="fas fa-sign-out-alt"></i> Logout</a >
+                            ><i class="fas fa-sign-out-alt"></i> Logout</a
+                        >
                     </li>
                 </ul>
             </div>
         </div>
 
-        <!-- Sidebar desktop -->
-        <nav class="col-md-2 d-none d-md-block bg-light sidebar">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link" href="dashboard.php">
-                                <i class="fas fa-home"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link active" href="photos.php">
-                                <i class="fas fa-images"></i> Foto Absensi
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link active" href="attendance_map.php">
-                                <i class="fas fa-map-marked-alt"></i> Lokasi
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="logout.php">
-                                <i class="fas fa-sign-out-alt"></i> Logout
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
+        <nav class="col-md-2 d-none d-md-block bg-light sidebar shadow-sm"> 
+            <div class="position-sticky pt-3">
+                <h4 class="px-3 mb-3">Menu Navigasi</h4>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="dashboard.php">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="photos.php">
+                            <i class="fas fa-images"></i> Foto Absensi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="attendance_map.php">
+                            <i class="fas fa-map-marked-alt"></i> Lokasi
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="logout.php">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
 
         <main class="col-md-10 ms-sm-auto px-md-4 pt-3">
             <h3>Halo, <?php echo htmlspecialchars($admin_name); ?></h3>
@@ -696,81 +825,255 @@ $conn->close();
 </script>
 <script>
 (function(){
-  // Buat URL untuk fetch JSON
-  const params = new URLSearchParams(window.location.search);
-  params.set('format', 'json');
-  const apiUrl = `${location.pathname}?${params.toString()}`;
+  const exportButton = document.getElementById('exportPdfBtn');
+  if (!exportButton) {
+    console.error("Export PDF button not found!");
+    return;
+  }
 
-  document.getElementById('exportPdfBtn').addEventListener('click', async () => {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  exportButton.addEventListener('click', async () => {
+    exportButton.disabled = true;
+    exportButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
 
-    // Fetch data
-    const resp = await fetch(apiUrl);
-    const data = await resp.json();
+    const params = new URLSearchParams(window.location.search);
+    params.set('format', 'json'); // Ensure we fetch JSON data
+    const apiUrl = `${window.location.pathname}?${params.toString()}`;
 
-    // Judul dokumen
-    doc.setFontSize(16);
-    doc.text('Laporan Absensi', 40, 40);
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
 
-    // Informasi filter tanggal
-    const dateFrom = params.get('date_from');
-    const dateTo = params.get('date_to');
-    let subtitle = 'Tanggal: ';
-    if (dateFrom && dateTo) subtitle += `${formatDMY(dateFrom)} s/d ${formatDMY(dateTo)}`;
-    else if (dateFrom) subtitle += `Mulai ${formatDMY(dateFrom)}`;
-    else if (dateTo) subtitle += `Sampai ${formatDMY(dateTo)}`;
-    else subtitle += formatDMY(params.get('date') || new Date().toISOString().slice(0,10));
-    doc.setFontSize(12);
-    doc.text(subtitle, 40, 60);
+        let currentY = 40; // Initial Y position for content
 
-    // Ubah bagian body tabel untuk menggunakan verifier_name
-    const body = data.map((item, idx) => {
-    const dur = (item.check_in_time && item.check_out_time)
-        ? getDuration(item.check_in_time, item.check_out_time)
-        : '-';
-    return [
-        idx + 1,
-        item.full_name,
-        item.nim,
-        formatDMY(item.date),
-        item.prodi,
-        item.check_in_time || '-',
-        item.check_out_time || '-',
-        dur,
-        item.notes || '-',
-        item.verified ? 'Terverifikasi' : 'Belum',
-        item.verifier_name || '-'
-    ];
-    });
+        // Variables for logo dimensions, to be set if logo loads
+        let pdfLogoWidth = 0;
+        const pdfLogoHeight = 20; // Desired height for the logo in the PDF
+        let actualLoadedLogoObject = null; // Will store the loaded HTMLImageElement
 
-    // AutoTable
-    doc.autoTable({
-      startY: 80,
-      head: [['No','Nama','NIM','Tanggal','Prodi','Jam Masuk','Jam Pulang','Durasi','Catatan','Status','Verifed By']],
-      body,
-      theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [200,200,200] },
-      margin: { left: 40, right: 40 }
-    });
+        // --- Integrasi Logo ---
+        try {
+            const logoUrl = '1041px-Unper.png'; // Pastikan path ini benar
+            const img = new Image();
+            // img.crossOrigin = 'Anonymous'; // Perlu jika logo dari domain berbeda & CORS diatur
 
-    doc.save(`laporan_absensi.pdf`);
+            const logoPromise = new Promise((resolve, reject) => {
+                img.onload = () => resolve(img);
+                img.onerror = (err) => {
+                    console.warn("Logo tidak dapat dimuat. Melanjutkan tanpa logo.", err);
+                    resolve(null); // Resolve dengan null jika logo gagal dimuat
+                };
+                img.src = logoUrl;
+            });
+
+            actualLoadedLogoObject = await logoPromise;
+
+            if (actualLoadedLogoObject) {
+                const aspectRatio = actualLoadedLogoObject.width / actualLoadedLogoObject.height;
+                pdfLogoWidth = pdfLogoHeight * aspectRatio;
+                // Jika logo dimuat, pdfLogoWidth akan > 0 (kecuali aspect ratio 0)
+            }
+        } catch (logoError) {
+            console.warn("Error saat memproses logo:", logoError);
+            actualLoadedLogoObject = null; // Pastikan null jika terjadi error
+        }
+        // --- Akhir Integrasi Logo ---
+
+        // Set font untuk judul utama
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+
+        const titleText = 'Laporan Absensi Mahasiswa';
+        const titleFontSize = 16; // Sesuai dengan setFontSize(16)
+
+        if (actualLoadedLogoObject && pdfLogoWidth > 0) {
+            // Logo berhasil dimuat, gambar logo dan judul berdampingan
+            const logoX = 40; // Margin kiri untuk logo
+            const logoY = currentY; // Posisi Y untuk bagian atas logo
+
+            // Hitung posisi X untuk teks judul, di sebelah kanan logo
+            const titleX = logoX + pdfLogoWidth + 10; // Padding 10 point setelah logo
+
+            // Hitung Posisi Y untuk baseline judul agar secara vertikal tengah dengan logo
+            // Koordinat Y teks di jsPDF mengacu pada baseline teks.
+            // Heuristik ini mencoba menyejajarkan pusat visual teks dengan pusat visual logo.
+            const titleBaselineY = logoY + (pdfLogoHeight / 2) + (titleFontSize / 3.5);
+
+            doc.addImage(actualLoadedLogoObject, 'PNG', logoX, logoY, pdfLogoWidth, pdfLogoHeight);
+            doc.text(titleText, titleX, titleBaselineY);
+
+            // Update currentY agar berada di bawah elemen yang lebih tinggi (logo atau perkiraan tinggi judul), ditambah padding
+            currentY += Math.max(pdfLogoHeight, titleFontSize) + 10; // Tambah spasi 10 point setelahnya
+        } else {
+            // Logo tidak dimuat atau tidak memiliki lebar, cetak judul saja secara normal
+            const titleX = 40; // Posisi X default untuk judul
+            // Tempatkan baseline teks sehingga bagian utama teks muncul dekat currentY
+            const titleBaselineY = currentY + titleFontSize * 0.8; // Sesuaikan baseline agar cap height dekat dengan currentY
+            doc.text(titleText, titleX, titleBaselineY);
+
+            // Update currentY agar berada di bawah judul, ditambah padding
+            currentY = titleBaselineY + (titleFontSize * 0.2) + 10; // Efektif: currentY (atas) + titleFontSize + padding
+        }
+
+        // Set font untuk subjudul dan teks berikutnya
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+
+        const dateFrom = params.get('date_from');
+        const dateTo = params.get('date_to');
+        const dateFilterPHP = params.get('date'); // Ini adalah $date_filter dari PHP jika ada
+        
+        let filterSubtitle = 'Filter Tanggal: ';
+        if (dateFrom && dateTo) {
+            filterSubtitle += `${formatDMY(dateFrom)} s/d ${formatDMY(dateTo)}`;
+        } else if (dateFrom) {
+            filterSubtitle += `Mulai ${formatDMY(dateFrom)}`;
+        } else if (dateTo) {
+            filterSubtitle += `Sampai ${formatDMY(dateTo)}`;
+        } else if (dateFilterPHP) { // Jika filter tunggal dari PHP ada
+            filterSubtitle += `${formatDMY(dateFilterPHP)}`;
+        } else {
+            filterSubtitle += `Hari Ini (${formatDMY(new Date().toISOString().slice(0,10))})`;
+        }
+        doc.text(filterSubtitle, 40, currentY);
+        currentY += 15;
+
+        const verificationFilter = params.get('filter') || 'all';
+        let statusText = 'Status Verifikasi: ';
+        if (verificationFilter === 'verified') statusText += 'Terverifikasi';
+        else if (verificationFilter === 'unverified') statusText += 'Belum Terverifikasi';
+        else statusText += 'Semua';
+        doc.text(statusText, 40, currentY);
+        currentY += 20;
+
+
+        const resp = await fetch(apiUrl);
+        if (!resp.ok) {
+            throw new Error(`Gagal mengambil data: ${resp.statusText}`);
+        }
+        const data = await resp.json();
+
+        const tableBody = data.map((item, idx) => {
+            const dur = (item.check_in_time && item.check_out_time)
+                ? getDuration(item.check_in_time, item.check_out_time)
+                : '-';
+            return [
+                idx + 1,
+                item.full_name || '-',
+                item.nim || '-',
+                item.date ? formatDMY(item.date) : '-',
+                item.prodi || '-',
+                item.check_in_time ? item.check_in_time.substring(0,8) : '-', // HH:MM:SS
+                item.check_out_time ? item.check_out_time.substring(0,8) : '-', // HH:MM:SS
+                dur,
+                item.notes || '-',
+                item.verified ? 'Terverifikasi' : 'Belum',
+                item.verifier_name || '-'
+            ];
+        });
+
+        doc.autoTable({
+          startY: currentY,
+          head: [['No','Nama','NIM','Tanggal','Prodi','Masuk','Pulang','Durasi','Catatan','Status','Diverifikasi Oleh']],
+          body: tableBody,
+          theme: 'grid', // 'striped', 'plain'
+          styles: { fontSize: 8, cellPadding: 3, halign: 'left', valign: 'middle' },
+          headStyles: { 
+              fillColor: [22, 79, 130], // Warna biru tua (misalnya, Unper blue)
+              textColor: 255, 
+              fontStyle: 'bold', 
+              halign: 'center',
+              valign: 'middle',
+              fontSize: 9
+          },
+          alternateRowStyles: { fillColor: [240, 245, 250] }, // Warna biru sangat muda untuk baris alternatif
+          columnStyles: {
+              0: { halign: 'center', cellWidth: 25 }, // No
+              1: { cellWidth: 'auto' }, // Nama
+              2: { halign: 'center', cellWidth: 60 }, // NIM
+              3: { halign: 'center', cellWidth: 60 }, // Tanggal
+              4: { cellWidth: 'auto' }, // Prodi
+              5: { halign: 'center', cellWidth: 50 }, // Masuk
+              6: { halign: 'center', cellWidth: 50 }, // Pulang
+              7: { halign: 'center', cellWidth: 50 }, // Durasi
+              8: { cellWidth: 100 }, // Catatan (beri sedikit lebar tetap)
+              9: { halign: 'center', cellWidth: 65 }, // Status
+              10: { halign: 'center', cellWidth: 'auto' } // Diverifikasi Oleh
+          },
+          margin: { top: 20, right: 30, bottom: 40, left: 30 }, // Margin autoTable
+          didDrawPage: function (dataHook) {
+            let footerStr = "Laporan Absensi Mahasiswa | Halaman " + doc.internal.getNumberOfPages();
+            const genTime = `Dibuat pada: ${new Date().toLocaleString('id-ID')}`;
+            doc.setFontSize(8);
+            doc.setTextColor(100); // Abu-abu
+            doc.text(footerStr, dataHook.settings.margin.left, doc.internal.pageSize.height - 25);
+            doc.text(genTime, doc.internal.pageSize.width - dataHook.settings.margin.right - doc.getTextWidth(genTime), doc.internal.pageSize.height - 25);
+          }
+        });
+
+        let filename = 'laporan_absensi';
+        if (dateFrom && dateTo) {
+            filename += `_${dateFrom}_sd_${dateTo}`;
+        } else if (dateFrom) {
+            filename += `_dari_${dateFrom}`;
+        } else if (dateTo) {
+            filename += `_sampai_${dateTo}`;
+        } else if (dateFilterPHP) {
+            filename += `_${dateFilterPHP}`;
+        }
+        if (verificationFilter && verificationFilter !== 'all') {
+            filename += `_${verificationFilter}`;
+        }
+        filename += '.pdf';
+
+        doc.save(filename);
+
+    } catch (error) {
+        console.error("Error generating PDF:", error);
+        alert("Gagal membuat PDF: " + error.message);
+    } finally {
+        exportButton.disabled = false;
+        exportButton.innerHTML = '<i class="fas fa-file-pdf"></i> Export PDF';
+    }
   });
 
-  // Helper: format YYYY-MM-DD → d-m-Y
-  function formatDMY(iso) {
-    const [y,m,d] = iso.split('-');
+  function formatDMY(isoDateString) {
+    if (!isoDateString || !isoDateString.includes('-')) return isoDateString;
+    const parts = isoDateString.split('-');
+    if (parts.length !== 3) return isoDateString;
+    const [y,m,d] = parts;
     return `${d}-${m}-${y}`;
   }
-  // Helper: hitung durasi jam:menit
-  function getDuration(inT, outT) {
-    const [ih,im] = inT.split(':').map(Number);
-    const [oh,om] = outT.split(':').map(Number);
-    let mins = (oh*60+om) - (ih*60+im);
-    const h = Math.floor(mins/60);
-    const m = mins%60;
-    return `${h} jam ${m} menit`;
+
+  function getDuration(timeIn, timeOut) {
+    if (!timeIn || !timeOut) return '-';
+    try {
+        const today = new Date().toISOString().slice(0,10); // Dapatkan tanggal hari ini sebagai basis
+        const startDateTime = new Date(`${today}T${timeIn}`);
+        let endDateTime = new Date(`${today}T${timeOut}`);
+
+        if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+             return '-'; // Waktu tidak valid
+        }
+        // Jika waktu pulang melewati tengah malam (misal, shift malam)
+        // Ini adalah asumsi sederhana; logika yang lebih kompleks mungkin diperlukan untuk kasus ekstrim
+        if (endDateTime < startDateTime) {
+            endDateTime.setDate(endDateTime.getDate() + 1); // Tambah satu hari ke waktu pulang
+        }
+
+        let diff = endDateTime.getTime() - startDateTime.getTime();
+        if (diff < 0) return '-'; // Perbedaan negatif setelah penyesuaian, mungkin data salah
+
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        diff -= hours * (1000 * 60 * 60);
+        const minutes = Math.floor(diff / (1000 * 60));
+        diff -= minutes * (1000 * 60);
+        const seconds = Math.floor(diff / 1000);
+
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    } catch (e) {
+        console.warn("Error menghitung durasi:", timeIn, timeOut, e);
+        return '-';
+    }
   }
 })();
 </script>

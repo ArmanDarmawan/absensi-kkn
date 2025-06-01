@@ -1,9 +1,9 @@
 <?php
 // Database connection
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
+define('DB_HOST', '');
+define('DB_USER', '');
 define('DB_PASS', '');
-define('DB_NAME', 'attendance_system');
+define('DB_NAME', '');
 
 // Establish database connection
 function connectDB() {
